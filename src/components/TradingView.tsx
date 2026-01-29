@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { TrendingUp, TrendingDown, Activity } from 'lucide-react'
+import { useState } from 'react'
+import { TrendingUp, Activity } from 'lucide-react'
 
 export default function TradingView() {
   const [timeframe, setTimeframe] = useState('1H')
@@ -80,7 +80,7 @@ export default function TradingView() {
       <div className="relative h-96 p-6">
         <div className="absolute inset-0 flex items-center justify-center">
           <img 
-            src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&h=400&fit=crop" 
+            src="https://images.pexels.com/photos/6801648/pexels-photo-6801648.jpeg?auto=compress&cs=tinysrgb&w=800&h=400&fit=crop" 
             alt="Trading Chart"
             className="w-full h-full object-cover opacity-20"
           />

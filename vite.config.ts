@@ -6,7 +6,7 @@ import { nodePolyfills } from '@bangjelkoski/vite-plugin-node-polyfills'
 export default defineConfig({
   plugins: [react(), nodePolyfills()],
   build: {
-    minify: 'esbuild',
+    minify: false,
     target: 'esnext',
     rollupOptions: {
       output: {
@@ -35,20 +35,11 @@ export default defineConfig({
           ],
           'icons': ['lucide-react'],
         },
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]',
       },
     },
-    chunkSizeWarningLimit: 1000,
-    reportCompressedSize: false,
   },
   esbuild: {
-    drop: ['console', 'debugger'],
-    legalComments: 'none',
-    minifyIdentifiers: true,
-    minifySyntax: true,
-    minifyWhitespace: true,
+    logOverride: { 'this-is-undefined-in-esm': 'silent' },
   },
   optimizeDeps: {
     exclude: ['lucide-react'],
@@ -60,14 +51,14 @@ export default defineConfig({
     ],
     esbuildOptions: {
       target: 'esnext',
-      supported: {
-        'top-level-await': true,
-      },
     },
   },
   server: {
     fs: {
       strict: false,
+    },
+    hmr: {
+      overlay: true,
     },
   },
 })
