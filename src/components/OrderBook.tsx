@@ -1,7 +1,6 @@
-import React from 'react'
 import { BookOpen } from 'lucide-react'
 
-export default function OrderBook() {
+export function OrderBook() {
   const bids = [
     { price: '24.58', amount: '125.4', total: '3,082.93' },
     { price: '24.57', amount: '89.2', total: '2,191.64' },

@@ -1,132 +1,101 @@
 import { useState } from 'react'
-import Header from './components/Header'
-import MarketTicker from './components/MarketTicker'
-import StatsCard from './components/StatsCard'
-import OrderBook from './components/OrderBook'
-import TradingView from './components/TradingView'
-import GridBotPanel from './components/GridBotPanel'
-import ActiveBots from './components/ActiveBots'
-import GridLevelsTable from './components/GridLevelsTable'
-import WalletModal from './components/WalletModal'
-import { useWallet } from './hooks/useWallet'
-import { useGridBot } from './hooks/useGridBot'
-import { usePriceStream } from './hooks/usePriceStream'
-import { TrendingUp, Activity, Target, Zap } from 'lucide-react'
+import { TrendingUp, Settings, Activity } from 'lucide-react'
+import { MarketTicker } from './components/MarketTicker'
+import { WalletConnect } from './components/WalletConnect'
+import { GridBotConfig } from './components/GridBotConfig'
+import { ActiveBots } from './components/ActiveBots'
 
 function App() {
-  const [showWalletModal, setShowWalletModal] = useState(false)
-  const { walletState, injectiveAddress, connect, disconnect, isConnecting, walletStrategy } = useWallet()
-  
-  const { 
-    config, 
-    setConfig, 
-    gridLevels, 
-    isRunning, 
-    isStarting,
-    stats, 
-    error,
-    startBot, 
-    stopBot 
-  } = useGridBot({ 
-    walletStrategy, 
-    injectiveAddress 
-  })
-
-  // Use the default INJ/USDT market for main price display
-  const { currentPrice, priceData } = usePriceStream()
-
-  const handleConnect = async (walletType: any) => {
-    try {
-      await connect(walletType)
-      setShowWalletModal(false)
-    } catch (error) {
-      console.error('Connection failed:', error)
-    }
-  }
+  const [activeTab, setActiveTab] = useState<'config' | 'bots' | 'settings'>('config')
 
   return (
     <div className="min-h-screen bg-[#171717]">
-      <Header 
-        address={walletState.address}
-        onConnect={() => setShowWalletModal(true)}
-        onDisconnect={disconnect}
-      />
-      
       <MarketTicker />
-
-      <main className="max-w-[1920px] mx-auto px-6 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Current Price"
-            value={`$${parseFloat(priceData.price).toFixed(2)}`}
-            change={`${parseFloat(priceData.change24h) >= 0 ? '+' : ''}${parseFloat(priceData.change24h).toFixed(2)}%`}
-            icon={TrendingUp}
-            trend={parseFloat(priceData.change24h) >= 0 ? 'up' : 'down'}
-          />
-          <StatsCard
-            title="Active Grids"
-            value={stats.activeGrids.toString()}
-            change={`${gridLevels.length} total`}
-            icon={Target}
-            trend="neutral"
-          />
-          <StatsCard
-            title="Total Trades"
-            value={stats.totalTrades.toString()}
-            change={`${stats.winRate.toFixed(1)}% win rate`}
-            icon={Activity}
-            trend="up"
-          />
-          <StatsCard
-            title="Running Time"
-            value={`${Math.floor(stats.runningTime / 60)}m ${stats.runningTime % 60}s`}
-            change={isRunning ? 'Active' : 'Stopped'}
-            icon={Zap}
-            trend={isRunning ? 'up' : 'neutral'}
-          />
-        </div>
-
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Left Column - Trading View & Order Book */}
-          <div className="lg:col-span-2 space-y-6">
-            <TradingView />
-            <OrderBook />
-          </div>
-
-          {/* Right Column - Grid Bot Panel */}
+      
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <GridBotPanel 
-              address={walletState.address}
-              onStart={startBot}
-              onStop={stopBot}
-              isRunning={isRunning}
-              isStarting={isStarting}
-              error={error}
-              config={config}
-              onConfigChange={setConfig}
-            />
+            <h1 className="text-4xl font-bold text-white mb-2">Injective Grid Bot</h1>
+            <p className="text-[#A3A3A3]">Automated grid trading on Injective Protocol</p>
           </div>
+          <WalletConnect />
         </div>
 
-        {/* Grid Levels Table */}
-        {gridLevels.length > 0 && (
-          <div className="mb-8">
-            <GridLevelsTable levels={gridLevels} currentPrice={currentPrice} />
+        <div className="flex space-x-2 mb-6 border-b border-[#2F2F2F]">
+          <button
+            onClick={() => setActiveTab('config')}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === 'config'
+                ? 'text-[#9E7FFF] border-b-2 border-[#9E7FFF]'
+                : 'text-[#A3A3A3] hover:text-white'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Settings className="w-4 h-4" />
+              <span>Configuration</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('bots')}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === 'bots'
+                ? 'text-[#9E7FFF] border-b-2 border-[#9E7FFF]'
+                : 'text-[#A3A3A3] hover:text-white'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Activity className="w-4 h-4" />
+              <span>Active Bots</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-6 py-3 font-medium transition-colors ${
+              activeTab === 'settings'
+                ? 'text-[#9E7FFF] border-b-2 border-[#9E7FFF]'
+                : 'text-[#A3A3A3] hover:text-white'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="w-4 h-4" />
+              <span>Settings</span>
+            </div>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            {activeTab === 'config' && <GridBotConfig />}
+            {activeTab === 'bots' && <ActiveBots />}
+            {activeTab === 'settings' && (
+              <div className="bg-[#262626] rounded-lg p-6">
+                <h3 className="text-white font-bold mb-4">Settings</h3>
+                <p className="text-[#A3A3A3]">Settings panel coming soon...</p>
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Active Bots */}
-        <ActiveBots isRunning={isRunning} config={config} stats={stats} />
-
-        <WalletModal
-          isOpen={showWalletModal}
-          onClose={() => setShowWalletModal(false)}
-          onSelectWallet={handleConnect}
-          isConnecting={isConnecting}
-        />
-      </main>
+          
+          <div className="space-y-6">
+            <div className="bg-[#262626] rounded-lg p-6">
+              <h3 className="text-white font-bold mb-4">Market Stats</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-[#A3A3A3]">24h Volume</span>
+                  <span className="text-white font-medium">$2.4M</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#A3A3A3]">Active Grids</span>
+                  <span className="text-[#10b981] font-medium">3</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#A3A3A3]">Total Profit</span>
+                  <span className="text-[#10b981] font-medium">+$124.50</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

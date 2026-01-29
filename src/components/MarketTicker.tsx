@@ -1,9 +1,8 @@
-import React from 'react'
-import { TrendingUp, TrendingDown } from 'lucide-react'
+import { TrendingUp, TrendingDown, AlertCircle } from 'lucide-react'
 import { usePriceStream } from '../hooks/usePriceStream'
 
 const TickerItem: React.FC<{ marketId: string; pair: string }> = ({ marketId, pair }) => {
-  const { priceData, isLoading } = usePriceStream(marketId)
+  const { priceData, isLoading, error } = usePriceStream(marketId)
   const isUp = parseFloat(priceData.change24h) >= 0
 
   if (isLoading) {
@@ -15,8 +14,27 @@ const TickerItem: React.FC<{ marketId: string; pair: string }> = ({ marketId, pa
     )
   }
 
+  if (error) {
+    return (
+      <div className="flex items-center space-x-2 min-w-fit">
+        <span className="text-sm font-medium text-white">{pair}</span>
+        <AlertCircle size={14} className="text-[#ef4444]" />
+        <span className="text-xs text-[#ef4444]">Error</span>
+      </div>
+    )
+  }
+
   const displayPrice = parseFloat(priceData.price)
   const displayChange = parseFloat(priceData.change24h)
+
+  if (displayPrice === 0) {
+    return (
+      <div className="flex items-center space-x-3 min-w-fit">
+        <span className="text-sm font-medium text-white">{pair}</span>
+        <span className="text-sm text-[#A3A3A3]">Connecting...</span>
+      </div>
+    )
+  }
 
   return (
     <div className="flex items-center space-x-3 min-w-fit">
@@ -34,8 +52,7 @@ const TickerItem: React.FC<{ marketId: string; pair: string }> = ({ marketId, pa
   )
 }
 
-const MarketTicker: React.FC = () => {
-  // Top markets on Injective
+export function MarketTicker() {
   const topMarkets = [
     { marketId: '0x0611780ba69656949525013d947713300f56c37b6175e02f26bffa495c3208fe', pair: 'INJ/USDT' },
     { marketId: '0x54d4505adef6a5cef26bc403a33d595620ded4e15b9e2bc3dd489b714813366a', pair: 'ATOM/USDT' },
@@ -60,5 +77,3 @@ const MarketTicker: React.FC = () => {
     </div>
   )
 }
-
-export default MarketTicker

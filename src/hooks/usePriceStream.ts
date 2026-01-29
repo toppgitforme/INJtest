@@ -8,82 +8,65 @@ interface PriceData {
   high24h: string
   low24h: string
   volume24h: string
-  lastUpdate: number
 }
-
-const DEFAULT_PRICE_DATA: PriceData = {
-  price: '0.00',
-  change24h: '0.00',
-  high24h: '0.00',
-  low24h: '0.00',
-  volume24h: '0',
-  lastUpdate: Date.now()
-}
-
-// Default to INJ/USDT market
-const DEFAULT_MARKET_ID = '0x0611780ba69656949525013d947713300f56c37b6175e02f26bffa495c3208fe'
 
 export function usePriceStream(marketId?: string) {
-  const [priceData, setPriceData] = useState<PriceData>(DEFAULT_PRICE_DATA)
+  const [priceData, setPriceData] = useState<PriceData>({
+    price: '0',
+    change24h: '0',
+    high24h: '0',
+    low24h: '0',
+    volume24h: '0'
+  })
   const [isLoading, setIsLoading] = useState(true)
-  const [currentPrice, setCurrentPrice] = useState<number>(0)
+  const [error, setError] = useState<string | null>(null)
+  const [detailedError, setDetailedError] = useState<string | null>(null)
 
   useEffect(() => {
-    const activeMarketId = marketId || DEFAULT_MARKET_ID
-    let intervalId: NodeJS.Timeout
+    if (!marketId) {
+      setIsLoading(false)
+      return
+    }
 
     const fetchPrice = async () => {
       try {
+        setIsLoading(true)
+        setError(null)
+        setDetailedError(null)
+
         const endpoints = getNetworkEndpoints(Network.Mainnet)
         const spotApi = new IndexerGrpcSpotApi(endpoints.indexer)
         
-        console.log('Fetching market data for:', activeMarketId)
+        const market = await spotApi.fetchMarket(marketId)
         
-        // Fetch market summary which includes price data
-        const market = await spotApi.fetchMarket(activeMarketId)
-        
-        console.log('Market data received:', market)
-        
-        if (market) {
-          const price = market.price || '0'
-          const change = market.changePercentage || '0'
-          const high = market.high || '0'
-          const low = market.low || '0'
-          const volume = market.volume || '0'
-          
-          console.log('Parsed price data:', { price, change, high, low, volume })
-          
-          setPriceData({
-            price,
-            change24h: change,
-            high24h: high,
-            low24h: low,
-            volume24h: volume,
-            lastUpdate: Date.now()
-          })
-          
-          setCurrentPrice(parseFloat(price))
-        }
+        setPriceData({
+          price: market.price || '0',
+          change24h: market.changePercentage || '0',
+          high24h: market.high || '0',
+          low24h: market.low || '0',
+          volume24h: market.volume || '0'
+        })
         
         setIsLoading(false)
-      } catch (err) {
-        console.error('Error fetching price:', err)
+      } catch (err: any) {
+        console.error('Price fetch error:', err)
+        setError('Failed to fetch market data')
+        setDetailedError(JSON.stringify(err, null, 2))
         setIsLoading(false)
       }
     }
 
-    // Initial fetch
     fetchPrice()
+    const interval = setInterval(fetchPrice, 5000)
 
-    // Poll every 3 seconds for real-time updates
-    intervalId = setInterval(fetchPrice, 3000)
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId)
-      }
-    }
+    return () => clearInterval(interval)
   }, [marketId])
 
-  return { priceData, isLoading, currentPrice }
+  return {
+    priceData,
+    isLoading,
+    currentPrice: parseFloat(priceData.price),
+    error,
+    detailedError
+  }
 }

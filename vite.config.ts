@@ -8,35 +8,6 @@ export default defineConfig({
   build: {
     minify: false,
     target: 'esnext',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'injective-sdk': ['@injectivelabs/sdk-ts'],
-          'injective-networks': ['@injectivelabs/networks'],
-          'injective-utils': ['@injectivelabs/utils', '@injectivelabs/exceptions', '@injectivelabs/ts-types'],
-          'wallet-strategy': ['@injectivelabs/wallet-strategy'],
-          'wallet-core': ['@injectivelabs/wallet-core', '@injectivelabs/wallet-base'],
-          'wallet-cosmos': [
-            '@injectivelabs/wallet-cosmos',
-            '@injectivelabs/wallet-cosmos-strategy',
-            '@injectivelabs/wallet-cosmostation',
-          ],
-          'wallet-evm': ['@injectivelabs/wallet-evm'],
-          'wallet-hardware': [
-            '@injectivelabs/wallet-ledger',
-            '@injectivelabs/wallet-trezor',
-          ],
-          'wallet-other': [
-            '@injectivelabs/wallet-magic',
-            '@injectivelabs/wallet-private-key',
-            '@injectivelabs/wallet-turnkey',
-            '@injectivelabs/wallet-wallet-connect',
-          ],
-          'icons': ['lucide-react'],
-        },
-      },
-    },
   },
   esbuild: {
     logOverride: { 'this-is-undefined-in-esm': 'silent' },
