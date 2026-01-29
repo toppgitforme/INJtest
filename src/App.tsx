@@ -1,103 +1,93 @@
-import { useState } from 'react'
-import { TrendingUp, Settings, Activity } from 'lucide-react'
-import { MarketTicker } from './components/MarketTicker'
-import { WalletConnect } from './components/WalletConnect'
-import { GridBotConfig } from './components/GridBotConfig'
-import { ActiveBots } from './components/ActiveBots'
+import { useState } from 'react';
+import { Grid3x3 } from 'lucide-react';
+import { WalletButton } from './components/WalletButton';
+import OrderPanel from './components/OrderPanel';
+import TradingChart from './components/TradingChart';
+import { useWallet } from './hooks/useWallet';
+import { useOrderService } from './hooks/useOrderService';
+import { OrderSide } from '@injectivelabs/ts-types';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'config' | 'bots' | 'settings'>('config')
+  const { walletState, injectiveAddress, walletStrategy } = useWallet();
+  const orderService = useOrderService(walletStrategy);
+  
+  // Example market data - replace with real data from useMarkets
+  const marketId = '0x0611780ba69656949525013d947713300f56c37b6175e02f26bffa495c3208fe'; // INJ/USDT
+  const baseDecimals = 18;
+  const quoteDecimals = 6;
+  const currentPrice = 24.50;
+
+  const handlePlaceOrder = async (params: {
+    price: number;
+    quantity: number;
+    orderSide: OrderSide;
+    orderType: 'limit' | 'market';
+  }) => {
+    if (!injectiveAddress) {
+      throw new Error('Wallet not connected');
+    }
+
+    const orderParams = {
+      marketId,
+      price: params.price,
+      quantity: params.quantity,
+      orderSide: params.orderSide,
+      baseDecimals,
+      quoteDecimals,
+    };
+
+    if (params.orderType === 'limit') {
+      await orderService.placeLimitOrder(orderParams, injectiveAddress);
+    } else {
+      const { price, ...marketParams } = orderParams;
+      await orderService.placeMarketOrder(marketParams, injectiveAddress);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#171717]">
-      <MarketTicker />
-      
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Injective Grid Bot</h1>
-            <p className="text-[#A3A3A3]">Automated grid trading on Injective Protocol</p>
+      <header className="border-b border-[#2F2F2F] bg-[#262626]/50 backdrop-blur-xl sticky top-0 z-50">
+        <div className="max-w-[1920px] mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-gradient-to-br from-[#9E7FFF] to-[#f472b6] rounded-xl">
+                <Grid3x3 className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-[#9E7FFF] to-[#f472b6] bg-clip-text text-transparent">
+                  Injective Grid Bot
+                </h1>
+                <p className="text-xs text-[#A3A3A3]">Automated Grid Trading</p>
+              </div>
+            </div>
+
+            <WalletButton />
           </div>
-          <WalletConnect />
         </div>
+      </header>
 
-        <div className="flex space-x-2 mb-6 border-b border-[#2F2F2F]">
-          <button
-            onClick={() => setActiveTab('config')}
-            className={`px-6 py-3 font-medium transition-colors ${
-              activeTab === 'config'
-                ? 'text-[#9E7FFF] border-b-2 border-[#9E7FFF]'
-                : 'text-[#A3A3A3] hover:text-white'
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <Settings className="w-4 h-4" />
-              <span>Configuration</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('bots')}
-            className={`px-6 py-3 font-medium transition-colors ${
-              activeTab === 'bots'
-                ? 'text-[#9E7FFF] border-b-2 border-[#9E7FFF]'
-                : 'text-[#A3A3A3] hover:text-white'
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <Activity className="w-4 h-4" />
-              <span>Active Bots</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`px-6 py-3 font-medium transition-colors ${
-              activeTab === 'settings'
-                ? 'text-[#9E7FFF] border-b-2 border-[#9E7FFF]'
-                : 'text-[#A3A3A3] hover:text-white'
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <TrendingUp className="w-4 h-4" />
-              <span>Settings</span>
-            </div>
-          </button>
-        </div>
-
+      <main className="max-w-[1920px] mx-auto px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            {activeTab === 'config' && <GridBotConfig />}
-            {activeTab === 'bots' && <ActiveBots />}
-            {activeTab === 'settings' && (
-              <div className="bg-[#262626] rounded-lg p-6">
-                <h3 className="text-white font-bold mb-4">Settings</h3>
-                <p className="text-[#A3A3A3]">Settings panel coming soon...</p>
-              </div>
-            )}
+          {/* Order Panel */}
+          <div className="lg:col-span-1">
+            <OrderPanel
+              marketId={marketId}
+              baseDecimals={baseDecimals}
+              quoteDecimals={quoteDecimals}
+              currentPrice={currentPrice}
+              onPlaceOrder={handlePlaceOrder}
+              isConnected={walletState.isConnected}
+            />
           </div>
-          
-          <div className="space-y-6">
-            <div className="bg-[#262626] rounded-lg p-6">
-              <h3 className="text-white font-bold mb-4">Market Stats</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-[#A3A3A3]">24h Volume</span>
-                  <span className="text-white font-medium">$2.4M</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#A3A3A3]">Active Grids</span>
-                  <span className="text-[#10b981] font-medium">3</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#A3A3A3]">Total Profit</span>
-                  <span className="text-[#10b981] font-medium">+$124.50</span>
-                </div>
-              </div>
-            </div>
+
+          {/* Trading Chart */}
+          <div className="lg:col-span-2">
+            <TradingChart marketId={marketId} />
           </div>
         </div>
-      </div>
+      </main>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

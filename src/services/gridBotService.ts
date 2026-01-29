@@ -3,6 +3,7 @@ import {
   MsgCreateSpotLimitOrder,
   spotPriceToChainPriceToFixed,
   spotQuantityToChainQuantityToFixed,
+  MsgCancelSpotOrder,
 } from '@injectivelabs/sdk-ts';
 import { Network, getNetworkEndpoints } from '@injectivelabs/networks';
 import { WalletStrategy } from '@injectivelabs/wallet-strategy';
@@ -28,16 +29,33 @@ export class GridBotService {
 
   calculateGridLevels(config: GridConfig): GridLevel[] {
     const { upperPrice, lowerPrice, gridLevels, investmentAmount } = config;
-    const priceStep = (upperPrice - lowerPrice) / (gridLevels - 1);
+    
+    // Calculate geometric spacing for better distribution
+    const ratio = Math.pow(upperPrice / lowerPrice, 1 / (gridLevels - 1));
     const amountPerGrid = investmentAmount / gridLevels;
 
-    return Array.from({ length: gridLevels }, (_, i) => ({
-      id: `grid-${i}`,
-      price: lowerPrice + (priceStep * i),
-      buyAmount: amountPerGrid,
-      sellAmount: amountPerGrid,
-      status: 'pending' as const,
-    }));
+    const levels: GridLevel[] = [];
+    
+    for (let i = 0; i < gridLevels; i++) {
+      const price = lowerPrice * Math.pow(ratio, i);
+      
+      levels.push({
+        id: `grid-${i}`,
+        price,
+        buyAmount: amountPerGrid,
+        sellAmount: amountPerGrid,
+        status: 'pending' as const,
+      });
+    }
+
+    console.log('📊 Calculated grid levels:', {
+      count: levels.length,
+      priceRange: `${levels[0].price.toExponential(4)} - ${levels[levels.length - 1].price.toExponential(4)}`,
+      spacing: 'geometric',
+      amountPerGrid,
+    });
+
+    return levels;
   }
 
   async placeGridOrders(
@@ -51,10 +69,15 @@ export class GridBotService {
     const orderHashes: string[] = [];
 
     try {
+      const midpoint = Math.floor(gridLevels.length / 2);
+      
       // Place buy orders for lower half of grid
-      const buyOrders = gridLevels.slice(0, Math.floor(gridLevels.length / 2));
+      const buyOrders = gridLevels.slice(0, midpoint);
+      console.log('📥 Placing', buyOrders.length, 'buy orders');
       
       for (const level of buyOrders) {
+        const quantity = level.buyAmount / level.price;
+        
         const msg = MsgCreateSpotLimitOrder.fromJSON({
           marketId,
           injectiveAddress,
@@ -65,7 +88,7 @@ export class GridBotService {
             quoteDecimals,
           }),
           quantity: spotQuantityToChainQuantityToFixed({
-            value: level.buyAmount / level.price,
+            value: quantity,
             baseDecimals,
           }),
         });
@@ -77,13 +100,21 @@ export class GridBotService {
 
         if (response.txHash) {
           orderHashes.push(response.txHash);
+          console.log('✅ Buy order placed:', {
+            price: level.price.toExponential(4),
+            quantity: quantity.toFixed(4),
+            hash: response.txHash.substring(0, 8) + '...',
+          });
         }
       }
 
       // Place sell orders for upper half of grid
-      const sellOrders = gridLevels.slice(Math.floor(gridLevels.length / 2));
+      const sellOrders = gridLevels.slice(midpoint);
+      console.log('📤 Placing', sellOrders.length, 'sell orders');
       
       for (const level of sellOrders) {
+        const quantity = level.sellAmount / level.price;
+        
         const msg = MsgCreateSpotLimitOrder.fromJSON({
           marketId,
           injectiveAddress,
@@ -94,7 +125,7 @@ export class GridBotService {
             quoteDecimals,
           }),
           quantity: spotQuantityToChainQuantityToFixed({
-            value: level.sellAmount / level.price,
+            value: quantity,
             baseDecimals,
           }),
         });
@@ -106,12 +137,17 @@ export class GridBotService {
 
         if (response.txHash) {
           orderHashes.push(response.txHash);
+          console.log('✅ Sell order placed:', {
+            price: level.price.toExponential(4),
+            quantity: quantity.toFixed(4),
+            hash: response.txHash.substring(0, 8) + '...',
+          });
         }
       }
 
       return orderHashes;
     } catch (error) {
-      console.error('Failed to place grid orders:', error);
+      console.error('❌ Failed to place grid orders:', error);
       throw error;
     }
   }
@@ -122,11 +158,24 @@ export class GridBotService {
     orderHashes: string[]
   ): Promise<void> {
     try {
-      // Implementation for canceling orders would go here
-      // This would use MsgCancelSpotOrder for each order
-      console.log('Canceling orders:', orderHashes);
+      console.log('🗑️ Canceling', orderHashes.length, 'orders');
+      
+      const cancelMsgs = orderHashes.map(orderHash => 
+        MsgCancelSpotOrder.fromJSON({
+          marketId,
+          injectiveAddress,
+          orderHash,
+        })
+      );
+
+      await this.msgBroadcaster.broadcast({
+        msgs: cancelMsgs,
+        injectiveAddress,
+      });
+
+      console.log('✅ All orders canceled successfully');
     } catch (error) {
-      console.error('Failed to cancel orders:', error);
+      console.error('❌ Failed to cancel orders:', error);
       throw error;
     }
   }

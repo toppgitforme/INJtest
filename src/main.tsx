@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
+import ErrorBoundary from './components/ErrorBoundary'
 
 console.log('🚀 main.tsx executing')
 
@@ -19,7 +20,9 @@ console.log('✅ Creating React root...')
 try {
   createRoot(rootElement).render(
     <StrictMode>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </StrictMode>,
   )
   console.log('✅ React root rendered')

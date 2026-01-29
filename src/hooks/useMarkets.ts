@@ -7,9 +7,19 @@ interface Market {
   ticker: string
   baseDenom: string
   quoteDenom: string
+  baseToken?: {
+    name: string
+    symbol: string
+    decimals: number
+  }
+  quoteToken?: {
+    name: string
+    symbol: string
+    decimals: number
+  }
 }
 
-export function useMarketsList() {
+export function useMarkets() {
   const [markets, setMarkets] = useState<Market[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -25,7 +35,6 @@ export function useMarketsList() {
         const response = await spotApi.fetchMarkets()
         
         if (isMounted) {
-          // SDK returns array directly, not nested in .markets
           const marketsList = Array.isArray(response) ? response : []
           
           if (marketsList.length > 0) {
@@ -33,19 +42,20 @@ export function useMarketsList() {
               marketId: market.marketId,
               ticker: market.ticker,
               baseDenom: market.baseDenom,
-              quoteDenom: market.quoteDenom
+              quoteDenom: market.quoteDenom,
+              baseToken: market.baseToken,
+              quoteToken: market.quoteToken,
             }))
             
             setMarkets(formattedMarkets)
             setError(null)
           } else {
-            setError(`No markets in response: ${JSON.stringify(response).substring(0, 200)}`)
+            setError('No markets available')
           }
         }
       } catch (err: any) {
         if (isMounted) {
-          const errorMsg = `SDK Error: ${err?.message || 'Unknown'} | Code: ${err?.code || 'N/A'}`
-          setError(errorMsg)
+          setError(err?.message || 'Failed to load markets')
         }
       } finally {
         if (isMounted) {

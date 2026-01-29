@@ -20,10 +20,10 @@ function WalletModal({ isOpen, onClose, onSelectWallet, isConnecting }: WalletMo
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-md gradient-border p-6 animate-in fade-in zoom-in duration-300">
+      <div className="relative w-full max-w-md bg-[#262626] border border-[#2F2F2F] rounded-2xl p-6">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 hover:bg-[#262626] rounded-lg transition-colors"
+          className="absolute top-4 right-4 p-2 hover:bg-[#171717] rounded-xl transition-all"
         >
           <X className="w-5 h-5" />
         </button>
@@ -36,7 +36,7 @@ function WalletModal({ isOpen, onClose, onSelectWallet, isConnecting }: WalletMo
               key={wallet.type}
               onClick={() => onSelectWallet(wallet.type)}
               disabled={isConnecting}
-              className="w-full flex items-center gap-4 p-4 bg-[#262626] hover:bg-[#2F2F2F] border border-[#2F2F2F] rounded-xl transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center gap-4 p-4 bg-[#171717] hover:bg-[#2F2F2F] border border-[#2F2F2F] rounded-xl transition-all hover:scale-105 disabled:opacity-50"
             >
               <span className="text-3xl">{wallet.icon}</span>
               <span className="font-semibold text-lg">{wallet.name}</span>

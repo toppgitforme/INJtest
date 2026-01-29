@@ -4,7 +4,6 @@ import { Network, getNetworkEndpoints } from '@injectivelabs/networks';
 import { WalletStrategy } from '@injectivelabs/wallet-strategy';
 import { Wallet } from '@injectivelabs/wallet-base';
 import { getInjectiveAddress } from '@injectivelabs/sdk-ts';
-import { WalletState } from '../types';
 
 const alchemyRpcEndpoint = 'https://sentry.evm-rpc.injective.network/';
 
@@ -16,6 +15,12 @@ const walletStrategy = new WalletStrategy({
   },
   strategies: {},
 });
+
+export interface WalletState {
+  address: string;
+  balance: string;
+  isConnected: boolean;
+}
 
 export const useWallet = () => {
   const [walletState, setWalletState] = useState<WalletState>({
@@ -40,7 +45,7 @@ export const useWallet = () => {
       
       setWalletState({
         address: addresses[0],
-        balance: '0', // Will be fetched separately
+        balance: '0',
         isConnected: true,
       });
     } catch (error) {
