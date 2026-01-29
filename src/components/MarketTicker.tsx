@@ -1,22 +1,33 @@
 import React from 'react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
-import { useMarketsList } from '../hooks/useMarketsList'
 import { usePriceStream } from '../hooks/usePriceStream'
 
 const TickerItem: React.FC<{ marketId: string; pair: string }> = ({ marketId, pair }) => {
-  const { priceData } = usePriceStream(marketId)
+  const { priceData, isLoading } = usePriceStream(marketId)
   const isUp = parseFloat(priceData.change24h) >= 0
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center space-x-3 min-w-fit animate-pulse">
+        <span className="text-sm font-medium text-white">{pair}</span>
+        <span className="text-sm text-[#A3A3A3]">Loading...</span>
+      </div>
+    )
+  }
+
+  const displayPrice = parseFloat(priceData.price)
+  const displayChange = parseFloat(priceData.change24h)
 
   return (
     <div className="flex items-center space-x-3 min-w-fit">
       <span className="text-sm font-medium text-white">{pair}</span>
-      <span className="text-sm text-[#A3A3A3]">
-        ${parseFloat(priceData.price).toFixed(4)}
+      <span className="text-sm text-white font-mono">
+        ${displayPrice.toFixed(displayPrice < 1 ? 6 : 2)}
       </span>
       <div className={`flex items-center space-x-1 ${isUp ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
         {isUp ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
         <span className="text-sm font-medium">
-          {isUp ? '+' : ''}{parseFloat(priceData.change24h).toFixed(2)}%
+          {isUp ? '+' : ''}{displayChange.toFixed(2)}%
         </span>
       </div>
     </div>
@@ -24,27 +35,24 @@ const TickerItem: React.FC<{ marketId: string; pair: string }> = ({ marketId, pa
 }
 
 const MarketTicker: React.FC = () => {
-  const { markets, isLoading } = useMarketsList()
-
-  if (isLoading) {
-    return (
-      <div className="bg-[#262626] border-b border-[#2F2F2F]">
-        <div className="container mx-auto px-4 py-3">
-          <div className="text-sm text-[#A3A3A3] animate-pulse">Loading markets...</div>
-        </div>
-      </div>
-    )
-  }
+  // Top markets on Injective
+  const topMarkets = [
+    { marketId: '0x0611780ba69656949525013d947713300f56c37b6175e02f26bffa495c3208fe', pair: 'INJ/USDT' },
+    { marketId: '0x54d4505adef6a5cef26bc403a33d595620ded4e15b9e2bc3dd489b714813366a', pair: 'ATOM/USDT' },
+    { marketId: '0x9b9980167ecc3645ff1a5517886652d94a0825e54a77d2057cbbe3ebee015963', pair: 'WETH/USDT' },
+    { marketId: '0x2d8b09c6eb8d8d3f2f22e3f7e3c8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8', pair: 'BTC/USDT' },
+    { marketId: '0x1c79dac019f73e4060494ab1b4fcba734350656d6fc4d474f6a238c13c6f9ced', pair: 'WMATIC/USDT' },
+  ]
 
   return (
     <div className="bg-[#262626] border-b border-[#2F2F2F] overflow-hidden">
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center space-x-8 overflow-x-auto scrollbar-hide">
-          {markets.slice(0, 5).map((market) => (
+          {topMarkets.map((market) => (
             <TickerItem
               key={market.marketId}
               marketId={market.marketId}
-              pair={`${market.baseSymbol}/${market.quoteSymbol}`}
+              pair={market.pair}
             />
           ))}
         </div>

@@ -11,7 +11,6 @@ import WalletModal from './components/WalletModal'
 import { useWallet } from './hooks/useWallet'
 import { useGridBot } from './hooks/useGridBot'
 import { usePriceStream } from './hooks/usePriceStream'
-import { useMarketsList } from './hooks/useMarketsList'
 import { TrendingUp, Activity, Target, Zap } from 'lucide-react'
 
 function App() {
@@ -33,8 +32,8 @@ function App() {
     injectiveAddress 
   })
 
-  const { currentPrice } = usePriceStream()
-  const { markets } = useMarketsList()
+  // Use the default INJ/USDT market for main price display
+  const { currentPrice, priceData } = usePriceStream()
 
   const handleConnect = async (walletType: any) => {
     try {
@@ -53,17 +52,17 @@ function App() {
         onDisconnect={disconnect}
       />
       
-      <MarketTicker markets={markets} />
+      <MarketTicker />
 
       <main className="max-w-[1920px] mx-auto px-6 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard
-            title="Total Profit"
-            value={`$${stats.totalProfit.toFixed(2)}`}
-            change="+12.5%"
+            title="Current Price"
+            value={`$${parseFloat(priceData.price).toFixed(2)}`}
+            change={`${parseFloat(priceData.change24h) >= 0 ? '+' : ''}${parseFloat(priceData.change24h).toFixed(2)}%`}
             icon={TrendingUp}
-            trend="up"
+            trend={parseFloat(priceData.change24h) >= 0 ? 'up' : 'down'}
           />
           <StatsCard
             title="Active Grids"
