@@ -13,8 +13,10 @@ export const useGridBot = ({ walletStrategy, injectiveAddress, currentPrice }: U
   const [config, setConfig] = useState<GridConfig>({
     upperPrice: 0,
     lowerPrice: 0,
+    minPrice: 0,
     gridLevels: 10,
     investmentAmount: 1000,
+    profitRatePerGrid: 0.5, // Default 0.5% profit per grid
     tradingPair: 'INJ/USDT',
   });
 
@@ -38,10 +40,13 @@ export const useGridBot = ({ walletStrategy, injectiveAddress, currentPrice }: U
   useEffect(() => {
     if (currentPrice > 0 && config.upperPrice === 0) {
       const range = currentPrice * 0.15; // ±15% range
+      const minPriceThreshold = currentPrice * 0.5; // 50% below current as min price
+      
       setConfig(prev => ({
         ...prev,
         upperPrice: currentPrice + range,
         lowerPrice: currentPrice - range,
+        minPrice: minPriceThreshold,
       }));
     }
   }, [currentPrice, config.upperPrice]);
@@ -50,19 +55,19 @@ export const useGridBot = ({ walletStrategy, injectiveAddress, currentPrice }: U
     return gridBotService.calculateGridLevels(cfg);
   }, [gridBotService]);
 
-  const startBot = useCallback(async () => {
+  const validateAndStart = useCallback((): { valid: boolean; errors: string[] } => {
     if (!injectiveAddress) {
-      setError('Please connect your wallet first');
-      return;
+      return { valid: false, errors: ['Please connect your wallet first'] };
     }
 
-    if (config.upperPrice <= config.lowerPrice) {
-      setError('Upper price must be greater than lower price');
-      return;
-    }
+    return gridBotService.validateConfig(config);
+  }, [config, injectiveAddress, gridBotService]);
 
-    if (config.investmentAmount <= 0) {
-      setError('Investment amount must be greater than 0');
+  const startBot = useCallback(async () => {
+    const validation = validateAndStart();
+    
+    if (!validation.valid) {
+      setError(validation.errors.join(', '));
       return;
     }
 
@@ -78,10 +83,13 @@ export const useGridBot = ({ walletStrategy, injectiveAddress, currentPrice }: U
       const baseDecimals = 18; // INJ decimals
       const quoteDecimals = 6; // USDT decimals
 
-      console.log('🤖 Starting grid bot with config:', {
+      console.log('🤖 Starting infinity grid bot with config:', {
         levels: levels.length,
-        range: `${config.lowerPrice.toExponential(4)} - ${config.upperPrice.toExponential(4)}`,
+        range: `${config.lowerPrice.toFixed(4)} - ${config.upperPrice.toFixed(4)}`,
+        minPrice: config.minPrice.toFixed(4),
+        profitRatePerGrid: `${config.profitRatePerGrid}%`,
         investment: config.investmentAmount,
+        expectedProfit: gridBotService.calculateExpectedProfit(config).toFixed(2),
       });
 
       // Place all grid orders
@@ -103,25 +111,29 @@ export const useGridBot = ({ walletStrategy, injectiveAddress, currentPrice }: U
         status: 'active' as const,
       })));
 
-      console.log('✅ Grid bot started successfully:', hashes.length, 'orders placed');
+      console.log('✅ Infinity grid bot started successfully:', {
+        ordersPlaced: hashes.length,
+        profitRatePerGrid: `${config.profitRatePerGrid}%`,
+        minPrice: config.minPrice.toFixed(4),
+      });
 
       // Start monitoring for filled orders
       startOrderMonitoring();
       
     } catch (err) {
-      console.error('❌ Failed to start grid bot:', err);
-      setError(err instanceof Error ? err.message : 'Failed to start grid bot');
+      console.error('❌ Failed to start infinity grid bot:', err);
+      setError(err instanceof Error ? err.message : 'Failed to start infinity grid bot');
       setIsRunning(false);
     } finally {
       setIsStarting(false);
     }
-  }, [config, injectiveAddress, calculateGridLevels, gridBotService]);
+  }, [config, injectiveAddress, calculateGridLevels, gridBotService, validateAndStart]);
 
   const stopBot = useCallback(async () => {
     try {
       if (orderHashes.length > 0) {
         const marketId = '0xa508cb32923323679f12c6f6f9cfd9a09580c05a5cd2cfde5a98a3a0c9d8f1c3';
-        console.log('🛑 Stopping grid bot, canceling', orderHashes.length, 'orders');
+        console.log('🛑 Stopping infinity grid bot, canceling', orderHashes.length, 'orders');
         await gridBotService.cancelAllOrders(injectiveAddress, marketId, orderHashes);
       }
       
@@ -129,15 +141,15 @@ export const useGridBot = ({ walletStrategy, injectiveAddress, currentPrice }: U
       setOrderHashes([]);
       setGridLevels([]);
       setError(null);
-      console.log('✅ Grid bot stopped successfully');
+      console.log('✅ Infinity grid bot stopped successfully');
     } catch (err) {
-      console.error('❌ Failed to stop grid bot:', err);
-      setError(err instanceof Error ? err.message : 'Failed to stop grid bot');
+      console.error('❌ Failed to stop infinity grid bot:', err);
+      setError(err instanceof Error ? err.message : 'Failed to stop infinity grid bot');
     }
   }, [orderHashes, injectiveAddress, gridBotService]);
 
   const startOrderMonitoring = useCallback(() => {
-    console.log('👀 Starting order monitoring');
+    console.log('👀 Starting infinity grid order monitoring');
     
     // Monitor for filled orders and rebalance grid
     const interval = setInterval(() => {
@@ -152,13 +164,14 @@ export const useGridBot = ({ walletStrategy, injectiveAddress, currentPrice }: U
           const levelIndex = updated.findIndex(l => l.id === level.id);
           
           if (levelIndex !== -1) {
-            const profit = (level.price * 0.001) * level.buyAmount; // 0.1% profit per grid
+            const profit = (level.price * (config.profitRatePerGrid / 100)) * level.buyAmount;
             updated[levelIndex].status = 'filled';
             updated[levelIndex].profit = profit;
             
-            console.log('💰 Grid filled:', {
-              price: level.price.toExponential(4),
+            console.log('💰 Infinity grid filled:', {
+              price: level.price.toFixed(4),
               profit: profit.toFixed(4),
+              profitRate: `${config.profitRatePerGrid}%`,
             });
             
             setStats(s => ({
@@ -176,7 +189,7 @@ export const useGridBot = ({ walletStrategy, injectiveAddress, currentPrice }: U
     }, 5000); // Check every 5 seconds
 
     return () => clearInterval(interval);
-  }, []);
+  }, [config.profitRatePerGrid]);
 
   // Track running time
   useEffect(() => {
@@ -188,6 +201,14 @@ export const useGridBot = ({ walletStrategy, injectiveAddress, currentPrice }: U
     }
   }, [isRunning]);
 
+  // Calculate expected daily profit
+  const calculateExpectedDailyProfit = useCallback(() => {
+    if (!isRunning) {
+      return gridBotService.calculateExpectedProfit(config);
+    }
+    return stats.totalProfit;
+  }, [config, isRunning, stats.totalProfit, gridBotService]);
+
   return {
     config,
     setConfig,
@@ -198,5 +219,7 @@ export const useGridBot = ({ walletStrategy, injectiveAddress, currentPrice }: U
     error,
     startBot,
     stopBot,
+    calculateExpectedDailyProfit,
+    validateConfig: () => gridBotService.validateConfig(config),
   };
 };

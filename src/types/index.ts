@@ -1,8 +1,10 @@
 export interface GridConfig {
   upperPrice: number
   lowerPrice: number
+  minPrice: number // New: minimum price threshold
   gridLevels: number
   investmentAmount: number
+  profitRatePerGrid: number // New: profit rate per grid in percentage (e.g., 0.5 = 0.5%)
   tradingPair: string
 }
 
@@ -13,6 +15,8 @@ export interface GridLevel {
   sellAmount: number
   status: 'pending' | 'active' | 'filled'
   profit?: number
+  buyOrderHash?: string
+  sellOrderHash?: string
 }
 
 export interface BotStats {

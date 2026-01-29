@@ -1,21 +1,75 @@
-import { useState } from 'react';
 import { Grid3x3 } from 'lucide-react';
 import { WalletButton } from './components/WalletButton';
 import OrderPanel from './components/OrderPanel';
 import TradingChart from './components/TradingChart';
+import GridBotPanel from './components/GridBotPanel';
 import { useWallet } from './hooks/useWallet';
 import { useOrderService } from './hooks/useOrderService';
+import { useGridBot } from './hooks/useGridBot';
 import { OrderSide } from '@injectivelabs/ts-types';
+import { useState, useEffect } from 'react';
 
 function App() {
-  const { walletState, injectiveAddress, walletStrategy } = useWallet();
-  const orderService = useOrderService(walletStrategy);
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
   
-  // Example market data - replace with real data from useMarkets
-  const marketId = '0x0611780ba69656949525013d947713300f56c37b6175e02f26bffa495c3208fe'; // INJ/USDT
+  const addDebug = (msg: string) => {
+    console.log('🔍', msg);
+    setDebugInfo(prev => [...prev, msg]);
+  };
+
+  useEffect(() => {
+    addDebug('App mounted');
+  }, []);
+
+  let walletState, injectiveAddress, walletStrategy;
+  try {
+    const wallet = useWallet();
+    walletState = wallet.walletState;
+    injectiveAddress = wallet.injectiveAddress;
+    walletStrategy = wallet.walletStrategy;
+    addDebug('Wallet hook OK');
+  } catch (err) {
+    addDebug('Wallet hook ERROR: ' + (err as Error).message);
+    throw err;
+  }
+
+  let orderService;
+  try {
+    orderService = useOrderService(walletStrategy);
+    addDebug('OrderService hook OK');
+  } catch (err) {
+    addDebug('OrderService hook ERROR: ' + (err as Error).message);
+    throw err;
+  }
+  
+  const marketId = '0x0611780ba69656949525013d947713300f56c37b6175e02f26bffa495c3208fe';
   const baseDecimals = 18;
   const quoteDecimals = 6;
   const currentPrice = 24.50;
+
+  let gridBot;
+  try {
+    gridBot = useGridBot({
+      walletStrategy,
+      injectiveAddress: injectiveAddress || '',
+      currentPrice,
+    });
+    addDebug('GridBot hook OK');
+  } catch (err) {
+    addDebug('GridBot hook ERROR: ' + (err as Error).message);
+    throw err;
+  }
+
+  const {
+    config,
+    setConfig,
+    isRunning,
+    isStarting,
+    error,
+    startBot,
+    stopBot,
+    calculateExpectedDailyProfit,
+  } = gridBot;
 
   const handlePlaceOrder = async (params: {
     price: number;
@@ -46,6 +100,28 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#171717]">
+      {/* Debug Panel */}
+      <div style={{
+        position: 'fixed',
+        top: '10px',
+        right: '10px',
+        background: '#000',
+        color: '#0f0',
+        padding: '10px',
+        fontSize: '12px',
+        fontFamily: 'monospace',
+        zIndex: 9999,
+        maxWidth: '300px',
+        maxHeight: '200px',
+        overflow: 'auto',
+        border: '2px solid #0f0'
+      }}>
+        <div>🔍 DEBUG LOG:</div>
+        {debugInfo.map((msg, i) => (
+          <div key={i}>{msg}</div>
+        ))}
+      </div>
+
       <header className="border-b border-[#2F2F2F] bg-[#262626]/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-[1920px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -60,7 +136,6 @@ function App() {
                 <p className="text-xs text-[#A3A3A3]">Automated Grid Trading</p>
               </div>
             </div>
-
             <WalletButton />
           </div>
         </div>
@@ -68,8 +143,7 @@ function App() {
 
       <main className="max-w-[1920px] mx-auto px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Order Panel */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-6">
             <OrderPanel
               marketId={marketId}
               baseDecimals={baseDecimals}
@@ -78,9 +152,20 @@ function App() {
               onPlaceOrder={handlePlaceOrder}
               isConnected={walletState.isConnected}
             />
+            
+            <GridBotPanel
+              address={injectiveAddress || ''}
+              onStart={startBot}
+              onStop={stopBot}
+              isRunning={isRunning}
+              isStarting={isStarting}
+              error={error}
+              config={config}
+              onConfigChange={setConfig}
+              expectedProfit={calculateExpectedDailyProfit()}
+            />
           </div>
 
-          {/* Trading Chart */}
           <div className="lg:col-span-2">
             <TradingChart marketId={marketId} />
           </div>

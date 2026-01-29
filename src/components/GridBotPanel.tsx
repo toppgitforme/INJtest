@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Grid3x3, Settings, Play, Square, Info, AlertCircle, Loader2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Grid3x3, Settings, Play, Square, Info, AlertCircle, Loader2, TrendingDown } from 'lucide-react'
 
 interface GridBotPanelProps {
   address: string
@@ -11,10 +11,13 @@ interface GridBotPanelProps {
   config: {
     upperPrice: number
     lowerPrice: number
+    minPrice: number
     gridLevels: number
     investmentAmount: number
+    profitRatePerGrid: number
   }
   onConfigChange: (config: any) => void
+  expectedProfit: number
 }
 
 export default function GridBotPanel({ 
@@ -25,32 +28,34 @@ export default function GridBotPanel({
   isStarting,
   error,
   config,
-  onConfigChange 
+  onConfigChange,
+  expectedProfit
 }: GridBotPanelProps) {
   const [upperPrice, setUpperPrice] = useState(config.upperPrice.toString())
   const [lowerPrice, setLowerPrice] = useState(config.lowerPrice.toString())
+  const [minPrice, setMinPrice] = useState(config.minPrice.toString())
   const [gridLevels, setGridLevels] = useState(config.gridLevels.toString())
   const [investment, setInvestment] = useState(config.investmentAmount.toString())
+  const [profitRate, setProfitRate] = useState(config.profitRatePerGrid.toString())
 
-  const calculateProfit = () => {
-    const upper = parseFloat(upperPrice) || 0
-    const lower = parseFloat(lowerPrice) || 0
-    const levels = parseInt(gridLevels) || 0
-    const invest = parseFloat(investment) || 0
-    
-    if (upper <= lower || levels === 0 || invest === 0) return '0.00'
-    
-    const range = upper - lower
-    const profitPerGrid = (range / levels) * 0.001 // 0.1% per grid
-    return (profitPerGrid * levels * invest / 100).toFixed(2)
-  }
+  // Update local state when config changes
+  useEffect(() => {
+    setUpperPrice(config.upperPrice.toString())
+    setLowerPrice(config.lowerPrice.toString())
+    setMinPrice(config.minPrice.toString())
+    setGridLevels(config.gridLevels.toString())
+    setInvestment(config.investmentAmount.toString())
+    setProfitRate(config.profitRatePerGrid.toString())
+  }, [config])
 
   const handleStart = async () => {
     onConfigChange({
       upperPrice: parseFloat(upperPrice),
       lowerPrice: parseFloat(lowerPrice),
+      minPrice: parseFloat(minPrice),
       gridLevels: parseInt(gridLevels),
       investmentAmount: parseFloat(investment),
+      profitRatePerGrid: parseFloat(profitRate),
       tradingPair: 'INJ/USDT',
     })
     await onStart()
@@ -59,8 +64,17 @@ export default function GridBotPanel({
   const isConfigValid = () => {
     const upper = parseFloat(upperPrice)
     const lower = parseFloat(lowerPrice)
+    const min = parseFloat(minPrice)
     const invest = parseFloat(investment)
-    return upper > lower && invest > 0 && address
+    const profit = parseFloat(profitRate)
+    
+    return upper > lower && 
+           min > 0 && 
+           min <= lower && 
+           invest > 0 && 
+           profit > 0 && 
+           profit <= 10 &&
+           address
   }
 
   return (
@@ -74,7 +88,7 @@ export default function GridBotPanel({
             </div>
             <div>
               <h3 className="text-white font-bold text-lg">Infinity Grid Bot</h3>
-              <p className="text-xs text-[#A3A3A3]">Automated grid trading</p>
+              <p className="text-xs text-[#A3A3A3]">Automated grid trading with profit targets</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -131,6 +145,50 @@ export default function GridBotPanel({
               />
             </div>
           </div>
+        </div>
+
+        {/* Min Price */}
+        <div>
+          <label className="flex items-center gap-2 text-sm text-[#A3A3A3] mb-2">
+            <TrendingDown className="w-4 h-4 text-[#ef4444]" />
+            Minimum Price Threshold
+          </label>
+          <input
+            type="text"
+            value={minPrice}
+            onChange={(e) => setMinPrice(e.target.value)}
+            disabled={isRunning}
+            className="w-full bg-[#171717] border border-[#2F2F2F] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#9E7FFF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            placeholder="12.00"
+          />
+          <p className="text-xs text-[#A3A3A3] mt-1">Bot will not place orders below this price</p>
+        </div>
+
+        {/* Profit Rate Per Grid */}
+        <div>
+          <label className="text-sm text-[#A3A3A3] mb-2 block">
+            Profit Rate Per Grid: {profitRate}%
+          </label>
+          <input
+            type="range"
+            min="0.1"
+            max="5"
+            step="0.1"
+            value={profitRate}
+            onChange={(e) => setProfitRate(e.target.value)}
+            disabled={isRunning}
+            className="w-full h-2 bg-[#171717] rounded-lg appearance-none cursor-pointer slider disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              background: `linear-gradient(to right, #10b981 0%, #10b981 ${(parseFloat(profitRate) - 0.1) / 4.9 * 100}%, #171717 ${(parseFloat(profitRate) - 0.1) / 4.9 * 100}%, #171717 100%)`
+            }}
+          />
+          <div className="flex justify-between text-xs text-[#A3A3A3] mt-1">
+            <span>0.1%</span>
+            <span>5%</span>
+          </div>
+          <p className="text-xs text-[#A3A3A3] mt-2">
+            Each grid level will target {profitRate}% profit
+          </p>
         </div>
 
         {/* Grid Levels */}
@@ -197,21 +255,29 @@ export default function GridBotPanel({
         {/* Profit Estimation */}
         <div className="bg-[#171717] border border-[#2F2F2F] rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm text-[#A3A3A3]">Estimated Daily Profit</span>
+            <span className="text-sm text-[#A3A3A3]">Expected Profit Per Cycle</span>
             <Info className="w-4 h-4 text-[#A3A3A3]" />
           </div>
           <div className="flex items-baseline space-x-2">
-            <span className="text-2xl font-bold text-[#10b981]">${calculateProfit()}</span>
-            <span className="text-sm text-[#A3A3A3]">per day</span>
+            <span className="text-2xl font-bold text-[#10b981]">${expectedProfit.toFixed(2)}</span>
+            <span className="text-sm text-[#A3A3A3]">per full cycle</span>
           </div>
           <div className="mt-3 pt-3 border-t border-[#2F2F2F] grid grid-cols-2 gap-4 text-xs">
             <div>
-              <p className="text-[#A3A3A3] mb-1">Grid Profit/Trade</p>
-              <p className="text-white font-medium">0.1%</p>
+              <p className="text-[#A3A3A3] mb-1">Profit/Grid</p>
+              <p className="text-white font-medium">{profitRate}%</p>
             </div>
             <div>
-              <p className="text-[#A3A3A3] mb-1">Trades/Day (Est.)</p>
-              <p className="text-white font-medium">{parseInt(gridLevels) * 2}</p>
+              <p className="text-[#A3A3A3] mb-1">Total Grids</p>
+              <p className="text-white font-medium">{gridLevels}</p>
+            </div>
+            <div>
+              <p className="text-[#A3A3A3] mb-1">Min Price</p>
+              <p className="text-white font-medium">${parseFloat(minPrice || '0').toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-[#A3A3A3] mb-1">Investment</p>
+              <p className="text-white font-medium">${parseFloat(investment || '0').toFixed(2)}</p>
             </div>
           </div>
         </div>
@@ -230,12 +296,12 @@ export default function GridBotPanel({
             {isStarting ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Starting Bot...</span>
+                <span>Starting Infinity Grid Bot...</span>
               </>
             ) : (
               <>
                 <Play className="w-5 h-5" />
-                <span>{address ? 'Start Grid Bot' : 'Connect Wallet to Start'}</span>
+                <span>{address ? 'Start Infinity Grid Bot' : 'Connect Wallet to Start'}</span>
               </>
             )}
           </button>
@@ -245,19 +311,19 @@ export default function GridBotPanel({
             className="w-full flex items-center justify-center space-x-2 py-4 rounded-xl font-bold text-white bg-gradient-to-r from-[#ef4444] to-[#dc2626] hover:opacity-90 shadow-lg shadow-[#ef4444]/30 transition-all hover:scale-105"
           >
             <Square className="w-5 h-5" />
-            <span>Stop Grid Bot</span>
+            <span>Stop Infinity Grid Bot</span>
           </button>
         )}
 
         {address && !isRunning && (
           <p className="text-xs text-center text-[#A3A3A3]">
-            Bot will execute automatically within the price range
+            Bot will execute automatically with {profitRate}% profit target per grid
           </p>
         )}
 
         {isRunning && (
           <p className="text-xs text-center text-[#10b981]">
-            Grid bot is actively trading • {gridLevels} levels active
+            Infinity grid bot active • {gridLevels} levels • {profitRate}% profit/grid
           </p>
         )}
       </div>
